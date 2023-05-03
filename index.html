@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}
+Home - My Flask App
+{% endblock %}
+
+{% block content %}
+<h1>Camera Feed</h1>
+<img id="video_feed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+<br>
+<button onclick="toggleCamera()">Toggle Camera</button>
+<button onclick="takePhoto()">Take Photo</button>
+<button onclick="startRecording()">Start Recording</button>
+<button onclick="stopRecording()">Stop Recording</button>
+<canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+<script>
+    let video = document.getElementById("video_feed");
+    let canvas = document.getElementById("canvas");
+    let context = canvas.getContext("2d");
+    let recording = false;
+    let chunks = [];
+    let cameraOn = false;
+
+    function generateFrames(on) {
+        if (on) {
+            let cap = cv2.VideoCapture(0);
+            while (cameraOn) {
+                let success, frame = cap.read();
+                if (!success) {
+                    break;
+                }
+                let ret, buffer = cv2.imencode('.jpg', frame);
+                frame = buffer.tobytes();
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n');
+            }
+            cap.release();
+        }
+    }
+
+    function toggleCamera() {
+        cameraOn = !cameraOn;
+        if (cameraOn) {
+            video.src = "{{ url_for('video_feed', on='true') }}";
+        } else {
+            video.srcObject.getTracks()[0].stop();
+            video.src = "";
+        }
+    }
+
+    function takePhoto() {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let dataURL = canvas.toDataURL("image/png");
+        let link = document.createElement("a");
+        link.download = "photo.png";
+        link.href = dataURL;
+        link.click();
+    }
+
+    function startRecording() {
+        chunks = [];
+        let stream = video.srcObject;
+        let mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = function (e) {
+            chunks.push(e.data);
+        };
+        mediaRecorder.start();
+        recording = true;
+    }
+
+    function stopRecording() {
+        if (recording) {
+            let mediaRecorder = new MediaRecorder(video.srcObject);
+            mediaRecorder.ondataavailable = function (e) {
+                chunks.push(e.data);
+                let blob = new Blob(chunks, { 'type': 'video/mp4' });
+                let url = URL.createObjectURL(blob);
+                let link = document.createElement("a");
+                link.download = "recording.mp4";
+                link.href = url;
+                link.click();
+                recording = false;
+            };
+            mediaRecorder.stop();
+        }
+    }
+</script>
+
+<!-- <h1>Webcam Capture</h1>
+    <img src="{{ url_for('video_feed') }}"> -->
+<p>This is the home page.</p>
+{% endblock %}

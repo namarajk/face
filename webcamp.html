@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Webcam</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <h1>Webcam</h1>
+    <button onclick="open_webcam()">Open Webcam</button>
+    <br>
+    <br>
+    <div class="row">
+      <div class="col-md-6">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+    <script>
+      function open_webcam() {
+        var video = document.createElement('video');
+        video.id = 'video';
+        video.width = 640;
+        video.height = 480;
+        video.autoplay = true;
+        document.body.appendChild(video);
+        navigator.mediaDevices.getUserMedia({video: true})
+        .then(function(stream) {
+          video.srcObject = stream;
+        })
+        .catch(function(error) {
+          console.log(error);
+        });
+        setInterval(function() {
+          var canvas = document.getElementById('canvas');
+          var context = canvas.getContext('2d');
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          $.ajax({
+            type: "POST",
+            url: "/video_feed",
+            data: canvas.toDataURL('image/jpeg'),
+            success: function(response) {
+              console.log(response);
+            }
+          });
+        }, 1000);
+      }
+    </script>
+  </body>
+</html>
